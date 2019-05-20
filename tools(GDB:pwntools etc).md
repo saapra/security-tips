@@ -1,0 +1,1 @@
+/Users/Aman/Desktop/ctf/____reminder____/tools(GDB:pwntools etc).md
