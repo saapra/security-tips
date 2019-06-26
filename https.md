@@ -15,7 +15,7 @@ __So lets look how each of this component works__
 * When you request to https://xyz.com , your system have to decide that weather the response is comming from legit xyz.com or someone is pretending to be xyz.com . Lets see how your computer/browser trust xyz.com.
 
 
-* There are many trusted CA authority ex. `verasign, globalsign etc` which OS like `windows, MAC etc` trust already. Lets see internally how this trust happen
+* There are many trusted CA authority ex. `verasign, globalsign etc` which OS like `windows, MAC etc` trust already(bcz its preinstalled). Lets see internally how this trust happen
 	* Verasign created a private key `private_vera.key` by `openssl genrsa -des3 -out private_vera.key 2048`. This is there private key they will use to make certificates.
 	* Now they created a Authority certificate based on there private key by `openssl req -new -x509 -days 3650 -key private_vera.key -out verasign_test.crt` signed with there private key.
 	* Now these certificates come preinstalled+preconfigured in OS's such as MAC/Windows who trust them. Any request/response to browser trust any certificate that are preconfigured in OS , so any website(xyz.com) who got there tls certificate signed by verisigned is trusted as OS trusts it.Now its verasign responsibility to issue certificates only to website that are legit and not `amazoon.com` but only `amazon.com`.

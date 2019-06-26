@@ -20,6 +20,7 @@
     * debugfs     (tell file headers and if they are wrong or right)
     * foremost    (file carving)
     * image 
+    * volatility  (memory dump analysis)
     * zsteg       (zsteg --all file.extension)
    split gif image to its frame
    remove white/black or any background from image
