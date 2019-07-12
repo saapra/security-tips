@@ -1,5 +1,9 @@
 # Forencis
 
+tips :
+`If you're on MacOS, you can rename .ntfs to .dmg`
+
+
 ```
     * file          (file)
     * Exiftool      (exiftool file)
@@ -22,6 +26,7 @@
     * image 
     * volatility  (memory dump analysis)
     * zsteg       (zsteg --all file.extension)
+    * ls -la@     ( view all streams/hidden file inside file, if found=> `xattr -p STREAM_NAME filename `)
    split gif image to its frame
    remove white/black or any background from image
    combine images

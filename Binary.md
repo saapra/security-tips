@@ -203,10 +203,13 @@ read from stdin into readbuff the input size “size”
 
 ## GETS:
 
-> get(ADDR)
+> gets(ADDR)
 ```
 Read from stdin into Addr
 ```
+
+### Info 
+adds null byte to the end of string
 
 ### POSSIBLE ATTACKS
 
